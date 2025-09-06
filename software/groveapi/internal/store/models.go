@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 )
 
 // ---- Enums ----
@@ -45,15 +46,16 @@ type User struct {
 }
 
 type Resource struct {
-	ID            uuid.UUID   `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	Name          string      `gorm:"not null"`
-	Location      string
-	ResourceType  ResourceType `gorm:"type:text;not null"`
-	OpeningHours  string       // expand later to JSON if needed
-	ClosingHours  string
-	MaxSlotLength int          `gorm:"not null;default:60"`
-	CreatedAt     time.Time    `gorm:"autoCreateTime"`
-	UpdatedAt     time.Time    `gorm:"autoUpdateTime"`
+	ID             uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	Name           string         `gorm:"not null"`
+	Type           string         `gorm:"not null"`
+	Location       *string
+	SlotMinutes    int            `gorm:"not null;default:60"`
+	BufferMinutes  int            `gorm:"not null;default:0"`
+	MaxAdvanceDays int            `gorm:"not null;default:14"`
+	OpenHours      datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'::jsonb"`
+	CreatedAt      time.Time    `gorm:"autoCreateTime"`
+	UpdatedAt      time.Time    `gorm:"autoUpdateTime"`
 }
 
 type Reservation struct {
