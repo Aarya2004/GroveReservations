@@ -18,20 +18,6 @@ const (
 	StatusCompleted ReservationStatus = "COMPLETED"
 )
 
-type ResourceType string
-
-const (
-	ResourceTennisCourt ResourceType = "TENNIS_COURT"
-)
-
-type Role string
-
-const (
-	RoleAdmin  Role = "ADMIN"
-	RoleMember Role = "MEMBER"
-	RoleGuest  Role = "GUEST"
-)
-
 // ---- Models (exported fields + tags) ----
 
 type User struct {
@@ -40,9 +26,10 @@ type User struct {
 	Email       string    `gorm:"uniqueIndex;not null"`
 	VillaNumber int
 	PhoneNumber string
-	Role        Role      `gorm:"type:text;not null;default:MEMBER"`
+	Role        string      `gorm:"type:text;not null;default:MEMBER"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"`
+	Active      bool
 }
 
 type Resource struct {

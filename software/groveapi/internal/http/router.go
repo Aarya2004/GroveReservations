@@ -1,12 +1,14 @@
 package http
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 	"groveapi/internal/http/routes"
+
+	"github.com/gofiber/fiber/v2"
+	supabase "github.com/supabase-community/supabase-go"
+	"gorm.io/gorm"
 )
 
-func NewApp(db *gorm.DB) *fiber.App {
+func NewApp(db *gorm.DB, sb *supabase.Client) *fiber.App {
 	app := fiber.New(fiber.Config{
 		CaseSensitive: true,
 		AppName:       "groveapi",
@@ -20,9 +22,9 @@ func NewApp(db *gorm.DB) *fiber.App {
 	v1  := api.Group("/v1")
 
 	// Mount feature routes
-	routes.RegisterAuthRoutes(v1, db)
+	routes.RegisterAuthRoutes(v1, db, sb)
 	routes.RegisterResourceRoutes(v1, db)
-	routes.RegisterReservationRoutes(v1, db)
+	routes.RegisterReservationRoutes(v1, db, sb)
 
 	return app
 }

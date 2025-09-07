@@ -8,12 +8,16 @@ import (
 type Config struct {
 	HTTPAddr    string
 	DatabaseURL string
+	SupabaseUrl string
+	SupabaseServiceKey string
 }
 
 func Load() Config {
 	return Config{
 		HTTPAddr:    getEnv("HTTP_ADDR", ":8080"),
 		DatabaseURL: must("DATABASE_URL"),
+		SupabaseUrl: must("SUPABASE_URL"),
+		SupabaseServiceKey: must("SUPABASE_SERVICE_KEY"),
 	}
 }
 

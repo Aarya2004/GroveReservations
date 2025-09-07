@@ -1,5 +1,7 @@
 package logic
 
+// TODO: Refactor this into the resource_handler file (or move logic from resource_handler here)
+
 import (
 	"context"
 	"encoding/json"

@@ -1,4 +1,5 @@
 package logic
+// TODO: Refactor this into the reservation_handler file (or move logic from reservation_handler here)
 
 import (
 	"context"
