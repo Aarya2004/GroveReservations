@@ -1,13 +1,37 @@
 "use client"
 
-import { useState } from "react"
+import { useReducer } from "react"
 import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email"),
+  password: z.string().min(1, "Password is required"),
+})
+
+type LoginValues = z.infer<typeof loginSchema>
+
+type AsyncState = { status: "idle" | "loading"; error: string | null }
+type AsyncAction =
+  | { type: "loading" }
+  | { type: "error"; message: string }
+  | { type: "reset" }
+
+function asyncReducer(_: AsyncState, action: AsyncAction): AsyncState {
+  switch (action.type) {
+    case "loading": return { status: "loading", error: null }
+    case "error":   return { status: "idle", error: action.message }
+    case "reset":   return { status: "idle", error: null }
+  }
+}
 
 type SubmitFn = (e: React.FormEvent<HTMLFormElement>) => Promise<void> | void
 
@@ -17,33 +41,29 @@ interface LoginProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function LoginForm({ className, handleSubmit = null, ...props }: LoginProps) {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
+  const [async, dispatch] = useReducer(asyncReducer, { status: "idle", error: null })
   const router = useRouter()
 
-  const defaultSubmissionHandler: SubmitFn = async (e) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+  const onSubmit = async (values: LoginValues) => {
+    dispatch({ type: "loading" })
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    })
 
     if (error) {
-      setError(error.message)
+      dispatch({ type: "error", message: error.message })
       return
     }
 
-    // Optional: verify email confirmed or roles here
     console.log("Signed in:", data)
     router.push("/resources")
   }
 
   const signInWithGoogle = async () => {
-    setError(null)
-    setLoading(true)
+    dispatch({ type: "loading" })
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -51,22 +71,21 @@ export function LoginForm({ className, handleSubmit = null, ...props }: LoginPro
         queryParams: { prompt: "select_account" }
       }
     })
-    setLoading(false)
-    if (error) setError(error.message)
+    if (error) dispatch({ type: "error", message: error.message })
   }
 
   const sendResetLink = async () => {
+    const email = form.getValues("email")
     if (!email) {
-      setError("Enter your email to receive a reset link.")
+      dispatch({ type: "error", message: "Enter your email to receive a reset link." })
       return
     }
-    setError(null)
-    setLoading(true)
+    dispatch({ type: "loading" })
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/update-password`
     })
-    setLoading(false)
-    if (error) setError(error.message)
+    if (error) dispatch({ type: "error", message: error.message })
+    else dispatch({ type: "reset" })
   }
 
   return (
@@ -77,7 +96,7 @@ export function LoginForm({ className, handleSubmit = null, ...props }: LoginPro
           <CardDescription>Enter your email below to login to your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit ?? defaultSubmissionHandler}>
+          <form onSubmit={handleSubmit ?? form.handleSubmit(onSubmit)}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-3">
                 <Label htmlFor="email">Email</Label>
@@ -85,10 +104,11 @@ export function LoginForm({ className, handleSubmit = null, ...props }: LoginPro
                   id="email"
                   type="email"
                   placeholder="m@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  {...form.register("email")}
                 />
+                {form.formState.errors.email && (
+                  <p className="text-sm text-red-600">{form.formState.errors.email.message}</p>
+                )}
               </div>
 
               <div className="grid gap-3">
@@ -105,24 +125,25 @@ export function LoginForm({ className, handleSubmit = null, ...props }: LoginPro
                 <Input
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
+                  {...form.register("password")}
                 />
+                {form.formState.errors.password && (
+                  <p className="text-sm text-red-600">{form.formState.errors.password.message}</p>
+                )}
               </div>
 
-              {error && (
+              {async.error && (
                 <p className="text-sm text-red-600">
-                  {error}
+                  {async.error}
                 </p>
               )}
 
               <div className="flex flex-col gap-3">
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Logging in..." : "Login"}
+                <Button type="submit" className="w-full" disabled={async.status === "loading"}>
+                  {async.status === "loading" ? "Logging in..." : "Login"}
                 </Button>
-                <Button type="button" variant="outline" className="w-full" onClick={signInWithGoogle} disabled={loading}>
-                  {loading ? "Please wait..." : "Login with Google"}
+                <Button type="button" variant="outline" className="w-full" onClick={signInWithGoogle} disabled={async.status === "loading"}>
+                  {async.status === "loading" ? "Please wait..." : "Login with Google"}
                 </Button>
               </div>
             </div>

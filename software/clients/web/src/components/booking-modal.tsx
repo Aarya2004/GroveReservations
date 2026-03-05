@@ -27,8 +27,10 @@ export function BookingModal({
   endsAt,
 }: BookingModalProps) {
   const queryClient = useQueryClient()
-  const [state, setState] = useState<"idle" | "success" | "error">("idle")
-  const [errorMsg, setErrorMsg] = useState("")
+  const [modal, setModal] = useState<{ state: "idle" | "success" | "error"; errorMsg: string }>({
+    state: "idle",
+    errorMsg: "",
+  })
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -41,24 +43,24 @@ export function BookingModal({
         }),
       }),
     onSuccess: () => {
-      setState("success")
+      setModal({ state: "success", errorMsg: "" })
       queryClient.invalidateQueries({ queryKey: ["availability", resourceId] })
     },
     onError: (err: Error) => {
-      setState("error")
-      setErrorMsg(err.message.includes("409") ? "This slot is no longer available." : err.message)
+      setModal({
+        state: "error",
+        errorMsg: err.message.includes("409") ? "This slot is no longer available." : err.message,
+      })
     },
   })
 
   const handleConfirm = () => {
-    setState("idle")
-    setErrorMsg("")
+    setModal({ state: "idle", errorMsg: "" })
     mutation.mutate()
   }
 
   const handleClose = () => {
-    setState("idle")
-    setErrorMsg("")
+    setModal({ state: "idle", errorMsg: "" })
     onClose()
   }
 
@@ -78,7 +80,7 @@ export function BookingModal({
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <CalendarCheck className="size-5 text-emerald-600" />
-              {state === "success" ? "Booking confirmed" : "Confirm booking"}
+              {modal.state === "success" ? "Booking confirmed" : "Confirm booking"}
             </CardTitle>
             <button
               onClick={handleClose}
@@ -90,7 +92,7 @@ export function BookingModal({
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {state === "success" ? (
+          {modal.state === "success" ? (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
               <CheckCircle2 className="size-10 text-emerald-600" />
               <p className="text-sm text-muted-foreground">
@@ -124,18 +126,18 @@ export function BookingModal({
                 </div>
               </div>
 
-              {state === "error" && (
+              {modal.state === "error" && (
                 <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                   <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                  {errorMsg}
+                  {modal.errorMsg}
                 </div>
               )}
             </>
           )}
         </CardContent>
 
-        <CardFooter className={cn("gap-2", state === "success" ? "justify-center" : "justify-end")}>
-          {state === "success" ? (
+        <CardFooter className={cn("gap-2", modal.state === "success" ? "justify-center" : "justify-end")}>
+          {modal.state === "success" ? (
             <Button onClick={handleClose}>Done</Button>
           ) : (
             <>
