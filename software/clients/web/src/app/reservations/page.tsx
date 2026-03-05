@@ -5,6 +5,17 @@ import { api } from "@/lib/api"
 import type { Reservation } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { format, parseISO } from "date-fns"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Calendar, ExternalLink, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -120,15 +131,37 @@ export default function ReservationsPage() {
                     </Link>
                   </Button>
                   {canCancel && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      disabled={cancelMutation.isPending}
-                      onClick={() => cancelMutation.mutate(r.id)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={cancelMutation.isPending}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancel reservation?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will cancel your booking on{" "}
+                            {format(start, "EEE, MMM d")} at {format(start, "HH:mm")}.
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep it</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => cancelMutation.mutate(r.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Cancel reservation
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
               </div>

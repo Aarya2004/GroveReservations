@@ -1,0 +1,6 @@
+INSERT INTO public.resources (name, type, location, slot_minutes, buffer_minutes, max_advance_days, open_hours) VALUES
+    ('Court 1', 'tennis_court', 'North Block', 60, 10, 14, '{"mon":"06:00-21:00","tue":"06:00-21:00","wed":"06:00-21:00","thu":"06:00-21:00","fri":"06:00-21:00","sat":"07:00-22:00","sun":"07:00-22:00"}'),
+    ('Court 2', 'tennis_court', 'North Block', 60, 10, 14, '{"mon":"06:00-21:00","tue":"06:00-21:00","wed":"06:00-21:00","thu":"06:00-21:00","fri":"06:00-21:00","sat":"07:00-22:00","sun":"07:00-22:00"}'),
+    ('Pool', 'swimming_pool', 'Clubhouse', 30, 5, 7, '{"mon":"08:00-20:00","tue":"08:00-20:00","wed":"08:00-20:00","thu":"08:00-20:00","fri":"08:00-20:00","sat":"09:00-18:00","sun":"09:00-18:00"}'),
+    ('BBQ Area', 'bbq', 'Garden Pavilion', 120, 15, 21, '{"mon":"10:00-22:00","tue":"10:00-22:00","wed":"10:00-22:00","thu":"10:00-22:00","fri":"10:00-22:00","sat":"10:00-22:00","sun":"10:00-22:00"}'),
+    ('Community Hall', 'hall', 'Main Building', 60, 15, 30, '{"mon":"08:00-23:00","tue":"08:00-23:00","wed":"08:00-23:00","thu":"08:00-23:00","fri":"08:00-23:00","sat":"08:00-23:00","sun":"08:00-23:00"}');
