@@ -1,21 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"groveapi/internal/logic"
-	"groveapi/internal/store"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
-
-// GET `/resources` – List all resources.
-// POST `/resources` *(admin)* – Create resource `{ name, type, location, rules }`.
-// GET `/resources/:id` – Get resource details and rules.
-// PATCH `/resources/:id` *(admin)* – Update resource/rules.
-// DELETE `/resources/:id` *(admin)* – Remove resource.
 
 type ResourceHTTP struct {
 	DB *gorm.DB
@@ -23,79 +15,79 @@ type ResourceHTTP struct {
 
 func NewResourceHTTP(db *gorm.DB) *ResourceHTTP { return &ResourceHTTP{DB: db} }
 
-func (h *ResourceHTTP) ListResources(c *fiber.Ctx) error   {
-	var resources []store.Resource
-	result := h.DB.Find(&resources)
-	if result.Error != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "internal_error", "detail": result.Error.Error()})
+func (h *ResourceHTTP) ListResources(c *fiber.Ctx) error {
+	resources, err := logic.ListResources(c.Context(), h.DB)
+	if err != nil {
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to list resources")
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"count": result.RowsAffected,
+		"count":     len(resources),
 		"resources": resources,
-	}) 
+	})
 }
 
 func (h *ResourceHTTP) CreateResource(c *fiber.Ctx) error {
 	var in logic.ResourceInput
 	if err := c.BodyParser(&in); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid_json"})
+		return SendError(c, http.StatusBadRequest, "invalid_json", "could not parse request body")
 	}
 	out, err := logic.CreateResource(c.Context(), h.DB, in)
 	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		if errors.Is(err, logic.ErrBadInput) {
+			return SendError(c, http.StatusBadRequest, "bad_input", "invalid resource data")
+		}
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to create resource")
 	}
 	return c.Status(http.StatusCreated).JSON(out)
 }
 
-func (h *ResourceHTTP) GetResource(c *fiber.Ctx) error { 
-	var resource store.Resource;
-	resource.ID = uuid.MustParse(c.Params("id"))
-	result := h.DB.First(&resource)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "resource_not_found"})
+func (h *ResourceHTTP) GetResource(c *fiber.Ctx) error {
+	id, err := parseUUIDParam(c, "id")
+	if err != nil {
+		return nil
+	}
+	out, err := logic.GetResource(c.Context(), h.DB, id)
+	if err != nil {
+		if errors.Is(err, logic.ErrNotFound) {
+			return SendError(c, http.StatusNotFound, "resource_not_found", "resource not found")
 		}
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "internal_error", "detail": result.Error.Error()})
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to get resource")
 	}
-	return c.Status(http.StatusOK).JSON(resource)
+	return c.Status(http.StatusOK).JSON(out)
 }
 
-type UpdateResourceInput struct {
-	Name           string
-	Type           string
-	Location       *string
-	SlotMinutes    int
-	BufferMinutes  int
-	MaxAdvanceDays int
-	OpenHours      datatypes.JSON
-}
-
-func (h *ResourceHTTP) UpdateResource(c *fiber.Ctx) error { 
-	var resource store.Resource;
-	var in UpdateResourceInput;
-
+func (h *ResourceHTTP) UpdateResource(c *fiber.Ctx) error {
+	id, err := parseUUIDParam(c, "id")
+	if err != nil {
+		return nil
+	}
+	var in logic.ResourceInput
 	if err := c.BodyParser(&in); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid_json"})
+		return SendError(c, http.StatusBadRequest, "invalid_json", "could not parse request body")
 	}
-	resource.ID = uuid.MustParse(c.Params("id"))
-	if err := h.DB.First(&resource).Error; err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "resource_not_found"})
+	out, err := logic.UpdateResource(c.Context(), h.DB, id, in)
+	if err != nil {
+		if errors.Is(err, logic.ErrNotFound) {
+			return SendError(c, http.StatusNotFound, "resource_not_found", "resource not found")
+		}
+		if errors.Is(err, logic.ErrBadInput) {
+			return SendError(c, http.StatusBadRequest, "bad_input", "invalid resource data")
+		}
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to update resource")
 	}
-	h.DB.Model(&resource).Updates(store.Resource{Name: in.Name, Type: in.Type, Location: in.Location, SlotMinutes: in.SlotMinutes,
-		BufferMinutes: in.BufferMinutes, MaxAdvanceDays: in.MaxAdvanceDays, OpenHours: in.OpenHours})
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"id": resource.ID,
-	})
+	return c.Status(http.StatusOK).JSON(out)
 }
 
-func (h *ResourceHTTP) DeleteResource(c *fiber.Ctx) error { 
-	var resource store.Resource;
-	resource.ID = uuid.MustParse(c.Params("id"))
-	if err := h.DB.First(&resource).Error; err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "resource_not_found"})
+func (h *ResourceHTTP) DeleteResource(c *fiber.Ctx) error {
+	id, err := parseUUIDParam(c, "id")
+	if err != nil {
+		return nil
 	}
-	if err := h.DB.Delete(&resource).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "internal_error", "detail": err.Error()})
+	if err := logic.DeleteResource(c.Context(), h.DB, id); err != nil {
+		if errors.Is(err, logic.ErrNotFound) {
+			return SendError(c, http.StatusNotFound, "resource_not_found", "resource not found")
+		}
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to delete resource")
 	}
 	return c.SendStatus(http.StatusNoContent)
 }

@@ -29,7 +29,7 @@ type User struct {
 	Role        string      `gorm:"type:text;not null;default:MEMBER"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"`
-	Active      bool
+	Active      bool      `gorm:"not null;default:true"`
 }
 
 type Resource struct {

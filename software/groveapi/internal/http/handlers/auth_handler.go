@@ -12,13 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// POST `/auth/login` – Login.
-// POST `/auth/logout` – Logout/invalidate session.
-// GET `/users/me` – Current user profile.
-// GET `/users` *(admin)* – List all users.
-// PATCH `/users/:id` *(admin)* – Update role/status.
-// DELETE `/users/:id` *(admin)* – Deactivate user.
-
 type AuthHTTP struct {
 	DB *gorm.DB
 	SB *supabase.Client
@@ -28,7 +21,7 @@ func NewAuthHTTP(db *gorm.DB, sb *supabase.Client) *AuthHTTP { return &AuthHTTP{
 
 type AdminCreateUserInput struct {
 	Email       string `json:"email"`
-	Password    string `json:"password,omitempty"` // optional if using magic link
+	Password    string `json:"password,omitempty"`
 	Name        string `json:"name"`
 	Role        string `json:"role"`
 	VillaNumber int    `json:"villa_number"`
@@ -38,18 +31,16 @@ type AdminCreateUserInput struct {
 func (h *AuthHTTP) AdminCreateUser(c *fiber.Ctx) error {
 	var in AdminCreateUserInput
 	if err := c.BodyParser(&in); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid_json"})
+		return SendError(c, http.StatusBadRequest, "invalid_json", "could not parse request body")
 	}
 	if in.Email == "" || in.Name == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "missing_required_fields"})
+		return SendError(c, http.StatusBadRequest, "missing_required_fields", "email and name are required")
 	}
 
-	// 1) Create Auth user (Admin)
-	
 	params := types.AdminCreateUserRequest{
-		Email:         in.Email,
+		Email:        in.Email,
 		UserMetadata: map[string]any{"name": in.Name},
-		EmailConfirm: false, // TODO
+		EmailConfirm: false,
 	}
 	if in.Password != "" {
 		params.Password = &in.Password
@@ -57,16 +48,15 @@ func (h *AuthHTTP) AdminCreateUser(c *fiber.Ctx) error {
 
 	u, err := h.SB.Auth.AdminCreateUser(params)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "auth_admin_create_failed", "detail": err.Error()})
+		return SendErrorDetail(c, http.StatusInternalServerError, "auth_admin_create_failed", "failed to create auth user", err.Error())
 	}
 	authID := u.ID.String()
 	authEmail := u.Email
 	uid, err := uuid.Parse(authID)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "auth_id_parse_failed"})
+		return SendError(c, http.StatusInternalServerError, "auth_id_parse_failed", "could not parse auth user ID")
 	}
 
-	// 2) Mirror profile row in public.users with SAME id
 	profile := store.User{
 		ID:          uid,
 		Email:       authEmail,
@@ -76,7 +66,7 @@ func (h *AuthHTTP) AdminCreateUser(c *fiber.Ctx) error {
 		PhoneNumber: in.PhoneNumber,
 	}
 	if err := h.DB.WithContext(context.Background()).Create(&profile).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "profile_insert_failed"})
+		return SendError(c, http.StatusInternalServerError, "profile_insert_failed", "failed to create user profile")
 	}
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{"id": authID, "email": authEmail})
@@ -84,26 +74,24 @@ func (h *AuthHTTP) AdminCreateUser(c *fiber.Ctx) error {
 
 type RegisterInput struct {
 	Email       string `json:"email"`
-	Password    string `json:"password,omitempty"` // optional if using magic link
+	Password    string `json:"password,omitempty"`
 	Name        string `json:"name"`
 	Role        string `json:"role"`
 	VillaNumber int    `json:"villa_number"`
 	PhoneNumber string `json:"phone_number"`
 }
 
-func (h *AuthHTTP) Register(c *fiber.Ctx) error { 
+func (h *AuthHTTP) Register(c *fiber.Ctx) error {
 	var in RegisterInput
 	if err := c.BodyParser(&in); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid_json"})
+		return SendError(c, http.StatusBadRequest, "invalid_json", "could not parse request body")
 	}
 	if in.Email == "" || in.Name == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "missing_required_fields"})
+		return SendError(c, http.StatusBadRequest, "missing_required_fields", "email and name are required")
 	}
 
-	// 1) Create Auth user (Admin)
-	
 	params := types.SignupRequest{
-		Email:         in.Email,
+		Email: in.Email,
 	}
 	if in.Password != "" {
 		params.Password = in.Password
@@ -111,16 +99,15 @@ func (h *AuthHTTP) Register(c *fiber.Ctx) error {
 
 	u, err := h.SB.Auth.Signup(params)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "user_registration_failed", "detail": err.Error()})
+		return SendErrorDetail(c, http.StatusInternalServerError, "user_registration_failed", "failed to register user", err.Error())
 	}
 	authID := u.ID.String()
 	authEmail := u.Email
 	uid, err := uuid.Parse(authID)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "auth_id_parse_failed"})
+		return SendError(c, http.StatusInternalServerError, "auth_id_parse_failed", "could not parse auth user ID")
 	}
 
-	// 2) Mirror profile row in public.users with SAME id
 	profile := store.User{
 		ID:          uid,
 		Email:       authEmail,
@@ -130,31 +117,31 @@ func (h *AuthHTTP) Register(c *fiber.Ctx) error {
 		PhoneNumber: in.PhoneNumber,
 	}
 	if err := h.DB.WithContext(context.Background()).Create(&profile).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "profile_insert_failed"})
+		return SendError(c, http.StatusInternalServerError, "profile_insert_failed", "failed to create user profile")
 	}
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{"id": authID, "email": authEmail})
 }
 
 type LoginInput struct {
-	Email       string `json:"email"`
-	Password    string `json:"password"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
-func (h *AuthHTTP) Login(c *fiber.Ctx) error { 
+func (h *AuthHTTP) Login(c *fiber.Ctx) error {
 	var in LoginInput
 	if err := c.BodyParser(&in); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid_json"})
+		return SendError(c, http.StatusBadRequest, "invalid_json", "could not parse request body")
 	}
 	if in.Email == "" || in.Password == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "missing_required_fields"})
+		return SendError(c, http.StatusBadRequest, "missing_required_fields", "email and password are required")
 	}
 
-	tokenResponse, err := h.SB.Auth.SignInWithEmailPassword(in.Email, in.Password);
+	tokenResponse, err := h.SB.Auth.SignInWithEmailPassword(in.Email, in.Password)
 	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid_credentials", "detail": err.Error()})
+		return SendErrorDetail(c, http.StatusBadRequest, "invalid_credentials", "invalid email or password", err.Error())
 	}
-	sess  := tokenResponse.Session
+	sess := tokenResponse.Session
 	h.SB.UpdateAuthSession(sess)
 
 	c.Cookie(&fiber.Cookie{
@@ -165,47 +152,41 @@ func (h *AuthHTTP) Login(c *fiber.Ctx) error {
 		SameSite: "Lax",
 		Path:     "/",
 	})
-	
-	usr := sess.User
-	userID := usr.ID.String()
-	userEmail := usr.Email
 
+	usr := sess.User
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"token_type":    "bearer",
 		"access_token":  sess.AccessToken,
 		"refresh_token": sess.RefreshToken,
 		"user": fiber.Map{
-			"id":    userID,
-			"email": userEmail,
+			"id":    usr.ID.String(),
+			"email": usr.Email,
 		},
 	})
 }
 
-func (h *AuthHTTP) Logout(c *fiber.Ctx) error { 
+func (h *AuthHTTP) Logout(c *fiber.Ctx) error {
 	err := h.SB.Auth.Logout()
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "error_logging_user_out", "detail": err.Error()})
+		return SendErrorDetail(c, http.StatusInternalServerError, "error_logging_user_out", "failed to log out", err.Error())
 	}
-	return c.SendStatus(http.StatusNoContent) 
+	return c.SendStatus(http.StatusNoContent)
 }
 
-func (h *AuthHTTP) GetCurrentUser(c *fiber.Ctx) error { 
-	u, err := h.SB.Auth.GetUser()
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "error_fetching_user", "detail": err.Error()})
+func (h *AuthHTTP) GetCurrentUser(c *fiber.Ctx) error {
+	userID, _ := c.Locals("user_id").(string)
+	var profile store.User
+	if err := h.DB.Where("id = ?", userID).First(&profile).Error; err != nil {
+		return SendError(c, http.StatusNotFound, "user_not_found", "user profile not found")
 	}
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"id":    u.ID.String(),
-		"email": u.Email,
-		"metadata": u.UserMetadata,
-	}) 
+	return c.Status(http.StatusOK).JSON(profile)
 }
 
 func (h *AuthHTTP) ListUsers(c *fiber.Ctx) error {
 	var users []store.User
 	result := h.DB.Find(&users)
 	if result.Error != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "error_listing_users", "detail": result.Error.Error()})
+		return SendErrorDetail(c, http.StatusInternalServerError, "error_listing_users", "failed to list users", result.Error.Error())
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"count": result.RowsAffected,
@@ -220,25 +201,47 @@ type UpdateUserInput struct {
 	PhoneNumber string `json:"phone_number"`
 }
 
-func (h *AuthHTTP) UpdateUser(c *fiber.Ctx) error { 
-	var user store.User;
-	var in UpdateUserInput;
+func (h *AuthHTTP) UpdateUser(c *fiber.Ctx) error {
+	id, err := parseUUIDParam(c, "id")
+	if err != nil {
+		return nil
+	}
+
+	var in UpdateUserInput
 	if err := c.BodyParser(&in); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid_json"})
+		return SendError(c, http.StatusBadRequest, "invalid_json", "could not parse request body")
 	}
-	user.ID = uuid.MustParse(c.Params("id"))
-	if err := h.DB.First(&user).Error; err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "user_not_found"})
+
+	var user store.User
+	if err := h.DB.Where("id = ?", id).First(&user).Error; err != nil {
+		return SendError(c, http.StatusNotFound, "user_not_found", "user not found")
 	}
-	h.DB.Model(&user).Updates(store.User{Name: in.Name, Role: in.Role, VillaNumber: in.VillaNumber, PhoneNumber: in.PhoneNumber})
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"id": user.ID,
+
+	result := h.DB.Model(&user).Updates(store.User{
+		Name: in.Name, Role: in.Role, VillaNumber: in.VillaNumber, PhoneNumber: in.PhoneNumber,
 	})
+	if result.Error != nil {
+		return SendError(c, http.StatusInternalServerError, "update_failed", "failed to update user")
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{"id": user.ID})
 }
 
-func (h *AuthHTTP) DeactivateUser(c *fiber.Ctx) error  { 
-	var user store.User;
-	user.ID = uuid.MustParse(c.Params("id"))
-	h.DB.Model(&user).Update("active", false)
+func (h *AuthHTTP) DeactivateUser(c *fiber.Ctx) error {
+	id, err := parseUUIDParam(c, "id")
+	if err != nil {
+		return nil
+	}
+
+	var user store.User
+	if err := h.DB.Where("id = ?", id).First(&user).Error; err != nil {
+		return SendError(c, http.StatusNotFound, "user_not_found", "user not found")
+	}
+
+	result := h.DB.Model(&user).Update("active", false)
+	if result.Error != nil {
+		return SendError(c, http.StatusInternalServerError, "deactivate_failed", "failed to deactivate user")
+	}
+
 	return c.SendStatus(http.StatusNoContent)
 }

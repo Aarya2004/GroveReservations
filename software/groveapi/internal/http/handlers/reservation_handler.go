@@ -5,120 +5,151 @@ import (
 	"groveapi/internal/logic"
 	"groveapi/internal/store"
 	"net/http"
-
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	supabase "github.com/supabase-community/supabase-go"
 	"gorm.io/gorm"
 )
 
-// GET `/reservations/me` – List my reservations.
-// GET `/reservations?resource_id=&from=&to=` *(admin)* – List reservations for a resource.
-// POST `/reservations` – Create reservation `{ resource_id, starts_at, ends_at }`.
-//   * Response: reservation object OR `409 Conflict`.
-// PATCH `/reservations/:id` – Modify reservation (time change, cancel).
-// DELETE `/reservations/:id` – Cancel reservation.
-
 type ReservationHTTP struct {
 	DB *gorm.DB
-	SB *supabase.Client
 }
 
-func NewReservationHTTP(db *gorm.DB, sb *supabase.Client) *ReservationHTTP { return &ReservationHTTP{DB: db, SB: sb} }
+func NewReservationHTTP(db *gorm.DB) *ReservationHTTP { return &ReservationHTTP{DB: db} }
 
 func (h *ReservationHTTP) CreateReservation(c *fiber.Ctx) error {
 	var in logic.ReservationInput
 	if err := c.BodyParser(&in); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error":"invalid_json"})
+		return SendError(c, http.StatusBadRequest, "invalid_json", "could not parse request body")
 	}
-	// TODO: inject current user from auth middleware; for now relies on JSON user_id
+
+	userID, _ := c.Locals("user_id").(string)
+	if userID != "" {
+		in.UserID = userID
+	}
+
 	out, err := logic.CreateReservation(c.Context(), h.DB, in)
 	switch {
 	case err == nil:
 		return c.Status(http.StatusCreated).JSON(out)
 	case errors.Is(err, logic.ErrConflict):
-		return c.Status(http.StatusConflict).JSON(fiber.Map{"error":"conflict"})
+		return SendError(c, http.StatusConflict, "conflict", "time slot is already booked")
 	case errors.Is(err, logic.ErrRuleViolation):
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error":"rule_violation"})
+		return SendError(c, http.StatusBadRequest, "rule_violation", "reservation violates booking rules")
 	default:
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error":"internal"})
+		return SendError(c, http.StatusInternalServerError, "internal", "failed to create reservation")
 	}
 }
 
-func (h *ReservationHTTP) ListCurrentUserReservations(c *fiber.Ctx) error { 
-	u, err := h.SB.Auth.GetUser()
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "error_fetching_user", "detail": err.Error()})
-	}
+func (h *ReservationHTTP) ListCurrentUserReservations(c *fiber.Ctx) error {
+	userID, _ := c.Locals("user_id").(string)
 	var reservations []store.Reservation
-	result := h.DB.Where("user_id = ?", u.ID).Find(&reservations)
+	result := h.DB.Where("user_id = ?", userID).Find(&reservations)
 	if result.Error != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "internal_error", "detail": result.Error.Error()})
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to list reservations")
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"count": result.RowsAffected,
+		"count":        result.RowsAffected,
 		"reservations": reservations,
 	})
 }
 
 func (h *ReservationHTTP) ListResourceReservations(c *fiber.Ctx) error {
+	resourceID := c.Query("resource_id")
+	if resourceID == "" {
+		return SendError(c, http.StatusBadRequest, "missing_param", "resource_id query parameter is required")
+	}
+	if _, err := uuid.Parse(resourceID); err != nil {
+		return SendError(c, http.StatusBadRequest, "invalid_uuid", "resource_id is not a valid UUID")
+	}
+
+	query := h.DB.Where("resource_id = ?", resourceID)
+
+	if from := c.Query("from"); from != "" {
+		if t, err := time.Parse(time.RFC3339, from); err == nil {
+			query = query.Where("ends_at >= ?", t)
+		}
+	}
+	if to := c.Query("to"); to != "" {
+		if t, err := time.Parse(time.RFC3339, to); err == nil {
+			query = query.Where("starts_at <= ?", t)
+		}
+	}
+
 	var reservations []store.Reservation
-	resourceId := c.Params("id")
-	result := h.DB.Where("resource_id = ?", resourceId).Find(&reservations)
+	result := query.Find(&reservations)
 	if result.Error != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "internal_error", "detail": result.Error.Error()})
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to list reservations")
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"count": result.RowsAffected,
+		"count":        result.RowsAffected,
 		"reservations": reservations,
 	})
 }
 
 type UpdateReservationInput struct {
-	UserId        string
-	ResourceId    string
-	StartsAt      time.Time
-	EndsAt        time.Time
-	Status        string    
+	StartsAt time.Time `json:"starts_at"`
+	EndsAt   time.Time `json:"ends_at"`
+	Status   string    `json:"status"`
 }
 
-func (h *ReservationHTTP) UpdateReservation(c *fiber.Ctx) error { 
-	var reservation store.Reservation;
-	var in UpdateReservationInput;
-	if err := c.BodyParser(&in); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid_json"})
-	}
-	reservation.ID = uuid.MustParse(c.Params("id"))
-	result := h.DB.First(&reservation)
-	if result.Error != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "error_finding_reservation", "detail": result.Error.Error()})
-	}
-	userId, err := uuid.Parse(in.UserId)
+func (h *ReservationHTTP) UpdateReservation(c *fiber.Ctx) error {
+	id, err := parseUUIDParam(c, "id")
 	if err != nil {
-		userId = reservation.UserID
-	}
-	resourceId, err := uuid.Parse(in.ResourceId)
-	if err != nil {
-		resourceId = reservation.ResourceID
+		return nil
 	}
 
-	h.DB.Model(&reservation).Updates(store.Reservation{UserID: userId, ResourceID: resourceId, StartsAt: in.StartsAt,
-		EndsAt: in.EndsAt, Status: in.Status})
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"id": reservation.ID,
-	})
+	var in UpdateReservationInput
+	if err := c.BodyParser(&in); err != nil {
+		return SendError(c, http.StatusBadRequest, "invalid_json", "could not parse request body")
+	}
+
+	var reservation store.Reservation
+	if err := h.DB.Where("id = ?", id).First(&reservation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return SendError(c, http.StatusNotFound, "reservation_not_found", "reservation not found")
+		}
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to find reservation")
+	}
+
+	updates := map[string]any{}
+	if !in.StartsAt.IsZero() {
+		updates["starts_at"] = in.StartsAt
+	}
+	if !in.EndsAt.IsZero() {
+		updates["ends_at"] = in.EndsAt
+	}
+	if in.Status != "" {
+		updates["status"] = in.Status
+	}
+
+	if len(updates) > 0 {
+		result := h.DB.Model(&reservation).Updates(updates)
+		if result.Error != nil {
+			return SendError(c, http.StatusInternalServerError, "update_failed", "failed to update reservation")
+		}
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{"id": reservation.ID})
 }
 
 func (h *ReservationHTTP) DeleteReservation(c *fiber.Ctx) error {
-	var reservation store.Reservation;
-	reservation.ID = uuid.MustParse(c.Params("id"))
-	if err := h.DB.First(&reservation).Error; err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "reservation_not_found"})
+	id, err := parseUUIDParam(c, "id")
+	if err != nil {
+		return nil
 	}
+
+	var reservation store.Reservation
+	if err := h.DB.Where("id = ?", id).First(&reservation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return SendError(c, http.StatusNotFound, "reservation_not_found", "reservation not found")
+		}
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to find reservation")
+	}
+
 	if err := h.DB.Delete(&reservation).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "internal_error", "detail": err.Error()})
+		return SendError(c, http.StatusInternalServerError, "internal_error", "failed to delete reservation")
 	}
-	return c.SendStatus(http.StatusNoContent) 
+	return c.SendStatus(http.StatusNoContent)
 }

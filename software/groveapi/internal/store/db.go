@@ -17,3 +17,11 @@ func MustOpen(dsn string) *Store {
 	}
 	return &Store{DB: db}
 }
+
+func (s *Store) Ping() error {
+	sqlDB, err := s.DB.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Ping()
+}
