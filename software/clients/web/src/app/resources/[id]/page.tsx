@@ -10,14 +10,14 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, Clock, MapPin, CalendarDays, Timer } from "lucide-react"
 import Link from "next/link"
 
-export default function ResourceDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+export default function ResourceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
 
-  const { data: resource, isLoading, error } = useQuery({
+  const {
+    data: resource,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["resource", id],
     queryFn: () => api<Resource>(`/resources/${id}`),
   })

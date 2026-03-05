@@ -69,10 +69,7 @@ export function BookingModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={handleClose}
-      />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
 
       {/* Modal */}
       <Card className="relative z-10 w-full max-w-md mx-4 shadow-xl animate-in fade-in zoom-in-95 duration-200">
@@ -99,7 +96,8 @@ export function BookingModal({
                 Your reservation has been confirmed. You can view it in{" "}
                 <a href="/reservations" className="underline underline-offset-2">
                   My Reservations
-                </a>.
+                </a>
+                .
               </p>
             </div>
           ) : (
@@ -136,7 +134,9 @@ export function BookingModal({
           )}
         </CardContent>
 
-        <CardFooter className={cn("gap-2", modal.state === "success" ? "justify-center" : "justify-end")}>
+        <CardFooter
+          className={cn("gap-2", modal.state === "success" ? "justify-center" : "justify-end")}
+        >
           {modal.state === "success" ? (
             <Button onClick={handleClose}>Done</Button>
           ) : (

@@ -18,11 +18,11 @@ export function useAuth() {
       setAuth({ user: session?.user ?? null, session, loading: false })
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setAuth({ user: session?.user ?? null, session, loading: false })
-      }
-    )
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuth({ user: session?.user ?? null, session, loading: false })
+    })
 
     return () => subscription.unsubscribe()
   }, [])

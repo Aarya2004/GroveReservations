@@ -9,8 +9,7 @@ import { Clock, MapPin, ArrowRight } from "lucide-react"
 export default function ResourcesPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["resources"],
-    queryFn: () =>
-      api<{ resources: Resource[] }>("/resources").then((d) => d.resources),
+    queryFn: () => api<{ resources: Resource[] }>("/resources").then((d) => d.resources),
   })
 
   if (isLoading) return <p className="py-12 text-center text-muted-foreground">Loading...</p>

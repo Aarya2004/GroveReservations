@@ -48,7 +48,7 @@ export function NavBar() {
                   "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   active
                     ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                 )}
               >
                 <Icon className="size-4" />
@@ -96,7 +96,7 @@ export function NavBar() {
                     "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     active
                       ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                   )}
                 >
                   <Icon className="size-4" />
@@ -106,9 +106,7 @@ export function NavBar() {
             })}
           </nav>
           <div className="mt-3 flex items-center justify-between border-t pt-3">
-            {user && (
-              <span className="truncate text-sm text-muted-foreground">{user.email}</span>
-            )}
+            {user && <span className="truncate text-sm text-muted-foreground">{user.email}</span>}
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-1.5">
               <LogOut className="size-3.5" />
               Sign out

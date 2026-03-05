@@ -37,9 +37,7 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ resourceId, onSelectSlot }: CalendarViewProps) {
-  const [weekStart, setWeekStart] = useState(() =>
-    startOfWeek(new Date(), { weekStartsOn: 1 })
-  )
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
 
   const from = weekStart.toISOString()
   const to = endOfWeek(weekStart, { weekStartsOn: 1 }).toISOString()
@@ -47,9 +45,7 @@ export function CalendarView({ resourceId, onSelectSlot }: CalendarViewProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["availability", resourceId, from],
     queryFn: () =>
-      api<AvailabilityResponse>(
-        `/availability?resource_id=${resourceId}&from=${from}&to=${to}`
-      ),
+      api<AvailabilityResponse>(`/availability?resource_id=${resourceId}&from=${from}&to=${to}`),
   })
 
   const days = useMemo(() => {
@@ -75,22 +71,14 @@ export function CalendarView({ resourceId, onSelectSlot }: CalendarViewProps) {
     <div className="space-y-4">
       {/* Week navigation */}
       <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setWeekStart((w) => subWeeks(w, 1))}
-        >
+        <Button variant="outline" size="sm" onClick={() => setWeekStart((w) => subWeeks(w, 1))}>
           <ChevronLeft className="size-4" />
           Previous
         </Button>
         <span className="text-sm font-medium text-muted-foreground">
           {format(weekStart, "MMM d")} — {format(addDays(weekStart, 6), "MMM d, yyyy")}
         </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setWeekStart((w) => addWeeks(w, 1))}
-        >
+        <Button variant="outline" size="sm" onClick={() => setWeekStart((w) => addWeeks(w, 1))}>
           Next
           <ChevronRight className="size-4" />
         </Button>
@@ -115,15 +103,11 @@ export function CalendarView({ resourceId, onSelectSlot }: CalendarViewProps) {
                 <div
                   className={cn(
                     "border-b px-2 py-2 text-center text-xs font-medium",
-                    isToday
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground"
+                    isToday ? "bg-primary/10 text-primary" : "text-muted-foreground",
                   )}
                 >
                   <div>{format(day, "EEE")}</div>
-                  <div className={cn("text-lg", isToday && "font-bold")}>
-                    {format(day, "d")}
-                  </div>
+                  <div className={cn("text-lg", isToday && "font-bold")}>{format(day, "d")}</div>
                 </div>
 
                 {/* Slots */}
@@ -144,10 +128,7 @@ export function CalendarView({ resourceId, onSelectSlot }: CalendarViewProps) {
                         disabled={!clickable}
                         onClick={() =>
                           clickable &&
-                          onSelectSlot(
-                            parseISO(slot.starts_at),
-                            parseISO(slot.ends_at)
-                          )
+                          onSelectSlot(parseISO(slot.starts_at), parseISO(slot.ends_at))
                         }
                         className={cn(
                           "rounded px-1.5 py-1 text-[11px] leading-tight transition-colors",
@@ -155,7 +136,7 @@ export function CalendarView({ resourceId, onSelectSlot }: CalendarViewProps) {
                             ? "cursor-pointer bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/60"
                             : isPast
                               ? "cursor-default bg-muted/40 text-muted-foreground/40 line-through"
-                              : "cursor-default bg-red-50 text-red-400 dark:bg-red-950/30 dark:text-red-400/70"
+                              : "cursor-default bg-red-50 text-red-400 dark:bg-red-950/30 dark:text-red-400/70",
                         )}
                       >
                         {format(start, "HH:mm")}

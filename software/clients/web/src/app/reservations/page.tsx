@@ -38,31 +38,22 @@ export default function ReservationsPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-reservations"],
     queryFn: () =>
-      api<{ reservations: Reservation[] }>("/reservations/me").then(
-        (d) => d.reservations
-      ),
+      api<{ reservations: Reservation[] }>("/reservations/me").then((d) => d.reservations),
   })
 
   const cancelMutation = useMutation({
-    mutationFn: (id: string) =>
-      api(`/reservations/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => api(`/reservations/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-reservations"] })
     },
   })
 
   if (isLoading) {
-    return (
-      <p className="py-12 text-center text-muted-foreground">
-        Loading reservations...
-      </p>
-    )
+    return <p className="py-12 text-center text-muted-foreground">Loading reservations...</p>
   }
 
   if (error) {
-    return (
-      <p className="py-12 text-center text-destructive">{String(error)}</p>
-    )
+    return <p className="py-12 text-center text-destructive">{String(error)}</p>
   }
 
   const reservations = data ?? []
@@ -70,12 +61,8 @@ export default function ReservationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          My Reservations
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          View and manage your upcoming bookings.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">My Reservations</h1>
+        <p className="text-sm text-muted-foreground">View and manage your upcoming bookings.</p>
       </div>
 
       {reservations.length === 0 ? (
@@ -92,8 +79,7 @@ export default function ReservationsPage() {
             const start = parseISO(r.starts_at)
             const end = parseISO(r.ends_at)
             const status = statusConfig[r.status] ?? statusConfig.CONFIRMED
-            const canCancel =
-              r.status === "CONFIRMED" || r.status === "HELD"
+            const canCancel = r.status === "CONFIRMED" || r.status === "HELD"
 
             return (
               <div
@@ -105,21 +91,17 @@ export default function ReservationsPage() {
                   <span className="text-xs font-medium uppercase text-muted-foreground">
                     {format(start, "MMM")}
                   </span>
-                  <span className="text-xl font-bold leading-tight">
-                    {format(start, "d")}
-                  </span>
+                  <span className="text-xl font-bold leading-tight">{format(start, "d")}</span>
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium truncate">
-                      {format(start, "EEE, MMM d")}
-                    </span>
+                    <span className="font-medium truncate">{format(start, "EEE, MMM d")}</span>
                     <span
                       className={cn(
                         "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                        status.className
+                        status.className,
                       )}
                     >
                       {status.label}

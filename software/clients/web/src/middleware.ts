@@ -17,9 +17,9 @@ export function middleware(request: NextRequest) {
   }
 
   // Check for Supabase auth token in cookies
-  const hasSession = request.cookies.getAll().some(
-    (c) => c.name.includes("auth-token") || c.name.includes("sb-")
-  )
+  const hasSession = request.cookies
+    .getAll()
+    .some((c) => c.name.includes("auth-token") || c.name.includes("sb-"))
 
   if (!hasSession && pathname !== "/") {
     const loginUrl = new URL("/login", request.url)

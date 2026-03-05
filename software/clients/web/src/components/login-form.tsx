@@ -20,16 +20,16 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>
 
 type AsyncState = { status: "idle" | "loading"; error: string | null }
-type AsyncAction =
-  | { type: "loading" }
-  | { type: "error"; message: string }
-  | { type: "reset" }
+type AsyncAction = { type: "loading" } | { type: "error"; message: string } | { type: "reset" }
 
 function asyncReducer(_: AsyncState, action: AsyncAction): AsyncState {
   switch (action.type) {
-    case "loading": return { status: "loading", error: null }
-    case "error":   return { status: "idle", error: action.message }
-    case "reset":   return { status: "idle", error: null }
+    case "loading":
+      return { status: "loading", error: null }
+    case "error":
+      return { status: "idle", error: action.message }
+    case "reset":
+      return { status: "idle", error: null }
   }
 }
 
@@ -68,8 +68,8 @@ export function LoginForm({ className, handleSubmit = null, ...props }: LoginPro
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: { prompt: "select_account" }
-      }
+        queryParams: { prompt: "select_account" },
+      },
     })
     if (error) dispatch({ type: "error", message: error.message })
   }
@@ -82,7 +82,7 @@ export function LoginForm({ className, handleSubmit = null, ...props }: LoginPro
     }
     dispatch({ type: "loading" })
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/update-password`
+      redirectTo: `${window.location.origin}/auth/update-password`,
     })
     if (error) dispatch({ type: "error", message: error.message })
     else dispatch({ type: "reset" })
@@ -122,27 +122,25 @@ export function LoginForm({ className, handleSubmit = null, ...props }: LoginPro
                     Forgot your password?
                   </button>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  {...form.register("password")}
-                />
+                <Input id="password" type="password" {...form.register("password")} />
                 {form.formState.errors.password && (
                   <p className="text-sm text-red-600">{form.formState.errors.password.message}</p>
                 )}
               </div>
 
-              {async.error && (
-                <p className="text-sm text-red-600">
-                  {async.error}
-                </p>
-              )}
+              {async.error && <p className="text-sm text-red-600">{async.error}</p>}
 
               <div className="flex flex-col gap-3">
                 <Button type="submit" className="w-full" disabled={async.status === "loading"}>
                   {async.status === "loading" ? "Logging in..." : "Login"}
                 </Button>
-                <Button type="button" variant="outline" className="w-full" onClick={signInWithGoogle} disabled={async.status === "loading"}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={signInWithGoogle}
+                  disabled={async.status === "loading"}
+                >
                   {async.status === "loading" ? "Please wait..." : "Login with Google"}
                 </Button>
               </div>

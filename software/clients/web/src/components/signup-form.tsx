@@ -29,10 +29,14 @@ type AsyncAction =
 
 function asyncReducer(_: AsyncState, action: AsyncAction): AsyncState {
   switch (action.type) {
-    case "loading": return { status: "loading", error: null }
-    case "success": return { status: "success", error: null }
-    case "error":   return { status: "idle", error: action.message }
-    case "reset":   return { status: "idle", error: null }
+    case "loading":
+      return { status: "loading", error: null }
+    case "success":
+      return { status: "success", error: null }
+    case "error":
+      return { status: "idle", error: action.message }
+    case "reset":
+      return { status: "idle", error: null }
   }
 }
 
@@ -76,8 +80,8 @@ export function SignupForm({ className, handleSubmit = null, ...props }: SignupP
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: { prompt: "select_account" }
-      }
+        queryParams: { prompt: "select_account" },
+      },
     })
     if (error) dispatch({ type: "error", message: error.message })
   }
@@ -89,7 +93,8 @@ export function SignupForm({ className, handleSubmit = null, ...props }: SignupP
           <CardHeader>
             <CardTitle>Check your email</CardTitle>
             <CardDescription>
-              We sent a confirmation link to <strong>{form.getValues("email")}</strong>. Click the link to activate your account.
+              We sent a confirmation link to <strong>{form.getValues("email")}</strong>. Click the
+              link to activate your account.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -151,17 +156,19 @@ export function SignupForm({ className, handleSubmit = null, ...props }: SignupP
                 )}
               </div>
 
-              {async.error && (
-                <p className="text-sm text-red-600">
-                  {async.error}
-                </p>
-              )}
+              {async.error && <p className="text-sm text-red-600">{async.error}</p>}
 
               <div className="flex flex-col gap-3">
                 <Button type="submit" className="w-full" disabled={async.status === "loading"}>
                   {async.status === "loading" ? "Creating account..." : "Sign up"}
                 </Button>
-                <Button type="button" variant="outline" className="w-full" onClick={signUpWithGoogle} disabled={async.status === "loading"}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={signUpWithGoogle}
+                  disabled={async.status === "loading"}
+                >
                   {async.status === "loading" ? "Please wait..." : "Sign up with Google"}
                 </Button>
               </div>
