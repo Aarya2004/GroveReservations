@@ -6,7 +6,7 @@ export type Resource = {
   slot_minutes: number
   buffer_minutes: number
   max_advance_days: number
-  open_hours: Record<string, string[]>
+  open_hours: Record<string, { open: string; close: string }>
 }
 export type Reservation = {
   id: string

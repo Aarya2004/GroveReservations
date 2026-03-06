@@ -2,8 +2,7 @@
 
 import { use, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { api } from "@/lib/api"
-import type { Resource } from "@/lib/types"
+import { getResource } from "@/lib/api"
 import { CalendarView } from "@/components/calendar-view"
 import { BookingModal } from "@/components/booking-modal"
 import { Button } from "@/components/ui/button"
@@ -19,7 +18,7 @@ export default function ResourceDetailPage({ params }: { params: Promise<{ id: s
     error,
   } = useQuery({
     queryKey: ["resource", id],
-    queryFn: () => api<Resource>(`/resources/${id}`),
+    queryFn: () => getResource(id),
   })
 
   const [booking, setBooking] = useState<{

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { api } from "@/lib/api"
+import { createReservation } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { format } from "date-fns"
@@ -34,13 +34,10 @@ export function BookingModal({
 
   const mutation = useMutation({
     mutationFn: () =>
-      api("/reservations", {
-        method: "POST",
-        body: JSON.stringify({
-          resource_id: resourceId,
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt.toISOString(),
-        }),
+      createReservation({
+        resource_id: resourceId,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
       }),
     onSuccess: () => {
       setModal({ state: "success", errorMsg: "" })

@@ -1,15 +1,14 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { api } from "@/lib/api"
-import type { Resource } from "@/lib/types"
+import { listResources } from "@/lib/api"
 import Link from "next/link"
 import { Clock, MapPin, ArrowRight } from "lucide-react"
 
 export default function ResourcesPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["resources"],
-    queryFn: () => api<{ resources: Resource[] }>("/resources").then((d) => d.resources),
+    queryFn: listResources,
   })
 
   if (isLoading) return <p className="py-12 text-center text-muted-foreground">Loading...</p>

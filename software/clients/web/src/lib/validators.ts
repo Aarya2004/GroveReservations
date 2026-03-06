@@ -2,7 +2,7 @@ import { z } from "zod"
 
 export const createReservationSchema = z.object({
   resource_id: z.string().uuid(),
-  starts_at: z.string().datetime(), // ISO string, will match what your Go API expects
+  starts_at: z.string().datetime(),
   ends_at: z.string().datetime(),
 })
 

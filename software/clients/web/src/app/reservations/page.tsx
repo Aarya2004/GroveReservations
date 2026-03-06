@@ -1,8 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api } from "@/lib/api"
-import type { Reservation } from "@/lib/types"
+import { listMyReservations, cancelReservation } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { format, parseISO } from "date-fns"
 import {
@@ -48,12 +47,11 @@ export default function ReservationsPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-reservations"],
-    queryFn: () =>
-      api<{ reservations: Reservation[] }>("/reservations/me").then((d) => d.reservations),
+    queryFn: listMyReservations,
   })
 
   const cancelMutation = useMutation({
-    mutationFn: (id: string) => api(`/reservations/${id}`, { method: "DELETE" }),
+    mutationFn: cancelReservation,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-reservations"] })
     },

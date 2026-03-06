@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { api } from "@/lib/api"
+import { getAvailability, type Slot } from "@/lib/availability"
 import {
   startOfWeek,
   endOfWeek,
@@ -18,19 +18,6 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-type Slot = {
-  starts_at: string
-  ends_at: string
-  available: boolean
-}
-
-type AvailabilityResponse = {
-  resource_id: string
-  from: string
-  to: string
-  slots: Slot[]
-}
-
 interface CalendarViewProps {
   resourceId: string
   onSelectSlot: (startsAt: Date, endsAt: Date) => void
@@ -39,13 +26,12 @@ interface CalendarViewProps {
 export function CalendarView({ resourceId, onSelectSlot }: CalendarViewProps) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
 
-  const from = weekStart.toISOString()
-  const to = endOfWeek(weekStart, { weekStartsOn: 1 }).toISOString()
+  const fromDate = weekStart
+  const toDate = endOfWeek(weekStart, { weekStartsOn: 1 })
 
   const { data, isLoading } = useQuery({
-    queryKey: ["availability", resourceId, from],
-    queryFn: () =>
-      api<AvailabilityResponse>(`/availability?resource_id=${resourceId}&from=${from}&to=${to}`),
+    queryKey: ["availability", resourceId, fromDate.toISOString()],
+    queryFn: () => getAvailability(resourceId, fromDate, toDate),
   })
 
   const days = useMemo(() => {
@@ -136,7 +122,9 @@ export function CalendarView({ resourceId, onSelectSlot }: CalendarViewProps) {
                             ? "cursor-pointer bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/60"
                             : isPast
                               ? "cursor-default bg-muted/40 text-muted-foreground/40 line-through"
-                              : "cursor-default bg-red-50 text-red-400 dark:bg-red-950/30 dark:text-red-400/70",
+                              : slot.booked_by_me
+                                ? "cursor-default bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
+                                : "cursor-default bg-red-50 text-red-400 dark:bg-red-950/30 dark:text-red-400/70",
                         )}
                       >
                         {format(start, "HH:mm")}
@@ -155,6 +143,10 @@ export function CalendarView({ resourceId, onSelectSlot }: CalendarViewProps) {
         <span className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-sm bg-emerald-100 dark:bg-emerald-950/40" />
           Available
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-blue-50 dark:bg-blue-950/40" />
+          Your booking
         </span>
         <span className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-sm bg-red-50 dark:bg-red-950/30" />
